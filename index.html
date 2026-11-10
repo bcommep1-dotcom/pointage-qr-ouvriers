@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pointage des ouvriers</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 15px;
+      background: #f3f4f6;
+    }
+    h2 { color: #17365d; }
+    select, button {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      font-size: 17px;
+      border-radius: 8px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 450px;
+      margin: 15px auto;
+      background: white;
+    }
+    #message {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>POINTAGE DES OUVRIERS</h2>
+
+<p>Choisir le chantier :</p>
+<select id="chantier">
+  <option value="NHM">NHM</option>
+  <option value="PRESTIGIA">PRESTIGIA</option>
+</select>
+
+<div id="reader"></div>
+<div id="message">En attente du scan...</div>
+
+<script>
+const SCRIPT_URL =
+"https://script.google.com/macros/s/AKfycbx1LWVnuOpTDxcDDq1LtmAwNtxU51dBkLMHFEXc9O6wnz3ArMhPlf6rEuKyRlqrgTTz/exec";
+
+let occupé = false;
+
+function resultatPointage(reponse) {
+  document.getElementById("message").textContent =
+    reponse.message || "Réponse reçue.";
+  occupé = false;
+}
+
+function scannerQR(matricule) {
+  if (occupé) return;
+  occupé = true;
+
+  const chantier = document.getElementById("chantier").value;
+  document.getElementById("message").textContent =
+    "Enregistrement en cours...";
+
+  const ancien = document.getElementById("appelPointage");
+  if (ancien) ancien.remove();
+
+  const script = document.createElement("script");
+  script.id = "appelPointage";
+  script.src = SCRIPT_URL +
+    "?action=pointage" +
+    "&matricule=" + encodeURIComponent(matricule) +
+    "&chantier=" + encodeURIComponent(chantier) +
+    "&callback=resultatPointage" +
+    "&t=" + Date.now();
+
+  script.onerror = function() {
+    document.getElementById("message").textContent =
+      "Erreur de connexion. Vérifiez Internet.";
+    occupé = false;
+  };
+
+  document.body.appendChild(script);
+}
+
+const lecteur = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(cameras => {
+  if (cameras.length === 0) {
+    document.getElementById("message").textContent =
+      "Aucune caméra détectée.";
+    return;
+  }
+
+  const camera = cameras[cameras.length - 1];
+
+  lecteur.start(
+    camera.id,
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    texte => scannerQR(texte.trim()),
+    erreur => {}
+  ).catch(erreur => {
+    document.getElementById("message").textContent =
+      "Impossible d'ouvrir la caméra : " + erreur;
+  });
+
+}).catch(erreur => {
+  document.getElementById("message").textContent =
+    "Erreur caméra : " + erreur;
+});
+</script>
+
+</body>
+</html>
